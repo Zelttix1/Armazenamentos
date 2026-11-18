@@ -1,427 +1,339 @@
 #include <iostream>
+#include <algorithm>
 #include <string>
 #include <vector>
 using namespace std;
 
-// ======================== ESTRUTURAS ========================
-
+// ESTRUTURAS
 struct Produto {
     int codigo;
     string nome;
     double preco;
     int estoque;
-    Produto* proximo;
+    Produto* prox;
 };
 
 struct NoArvore {
     int codigo;
-    NoArvore* esquerda;
-    NoArvore* direita;
+    NoArvore *esq, *dir;
 };
 
 struct NoFila {
     string nome;
-    NoFila* proximo;
+    NoFila* prox;
 };
 
 struct NoPilha {
-    string descricao;
-    NoPilha* proximo;
+    string venda;
+    NoPilha* prox;
 };
 
-// ======================== VARIAVEIS ========================
-
-Produto* inicioProdutos = nullptr;
+// INICIO DAS ESTRUTURAS
+Produto* produtos = nullptr;
 NoArvore* raiz = nullptr;
-NoFila* inicioFila = nullptr;
-NoFila* fimFila = nullptr;
-NoPilha* topoHistorico = nullptr;
+NoFila *inicioFila = nullptr, *fimFila = nullptr;
+NoPilha* topo = nullptr;
 int proximoCodigo = 1;
 
-// ======================== PROTOTIPOS ========================
+// ÁRVORE BINÁRIA
+// Insere um código na árvore usando recursividade.
+NoArvore* inserirArvore(NoArvore* no, int codigo) {
+    if (no == nullptr) {
+        NoArvore* novo = new NoArvore{codigo, nullptr, nullptr};
+        return novo;
+    }
+    if (codigo < no->codigo) no->esq = inserirArvore(no->esq, codigo);
+    else if (codigo > no->codigo) no->dir = inserirArvore(no->dir, codigo);
+    return no;
+}
 
-NoArvore* inserirArvore(NoArvore* no, int codigo);
-NoArvore* removerArvore(NoArvore* no, int codigo);
-NoArvore* menorNo(NoArvore* no);
+// Procura um código na árvore de forma recursiva.
+bool buscarArvore(NoArvore* no, int codigo) {
+    if (no == nullptr) return false;
+    if (no->codigo == codigo) return true;
+    if (codigo < no->codigo) return buscarArvore(no->esq, codigo);
+    return buscarArvore(no->dir, codigo);
+}
 
-// ======================== PRODUTOS ========================
+// Exibe os códigos em ordem crescente.
+void listarArvore(NoArvore* no) {
+    if (no == nullptr) return;
+    listarArvore(no->esq);
+    cout << no->codigo << " ";
+    listarArvore(no->dir);
+}
 
+// Encontra o menor nó de uma parte da árvore.
+NoArvore* menorNo(NoArvore* no) {
+    while (no->esq != nullptr) no = no->esq;
+    return no;
+}
+
+// Remove um código da árvore.
+NoArvore* removerArvore(NoArvore* no, int codigo) {
+    if (no == nullptr) return nullptr;
+    if (codigo < no->codigo) no->esq = removerArvore(no->esq, codigo);
+    else if (codigo > no->codigo) no->dir = removerArvore(no->dir, codigo);
+    else {
+        if (no->esq == nullptr) {
+            NoArvore* temp = no->dir;
+            delete no;
+            return temp;
+        }
+        if (no->dir == nullptr) {
+            NoArvore* temp = no->esq;
+            delete no;
+            return temp;
+        }
+        NoArvore* temp = menorNo(no->dir);
+        no->codigo = temp->codigo;
+        no->dir = removerArvore(no->dir, temp->codigo);
+    }
+    return no;
+}
+
+// PRODUTOS
+// Cadastra um produto na lista e seu código na árvore.
 void cadastrarProduto() {
     Produto* novo = new Produto;
     novo->codigo = proximoCodigo++;
-
-    cout << "Nome do produto: ";
+    cout << "Nome: ";
     getline(cin >> ws, novo->nome);
-    cout << "Preco: ";
+    cout << "Preço: ";
     cin >> novo->preco;
-    cout << "Quantidade em estoque: ";
+    cout << "Estoque: ";
     cin >> novo->estoque;
-    novo->proximo = nullptr;
+    novo->prox = nullptr;
 
-    if (inicioProdutos == nullptr) {
-        inicioProdutos = novo;
-    } else {
-        Produto* atual = inicioProdutos;
-        while (atual->proximo != nullptr) {
-            atual = atual->proximo;
-        }
-        atual->proximo = novo;
+    if (produtos == nullptr) produtos = novo;
+    else {
+        Produto* atual = produtos;
+        while (atual->prox != nullptr) atual = atual->prox;
+        atual->prox = novo;
     }
-
     raiz = inserirArvore(raiz, novo->codigo);
-    cout << "Produto cadastrado! Codigo: " << novo->codigo << "\n";
+    cout << "Produto cadastrado. Código: " << novo->codigo << "\n";
 }
 
+// Remove um produto da lista e da árvore.
 void removerProduto() {
     int codigo;
-    cout << "Codigo do produto: ";
+    cout << "Código: ";
     cin >> codigo;
-
-    Produto* atual = inicioProdutos;
-    Produto* anterior = nullptr;
+    Produto *atual = produtos, *anterior = nullptr;
 
     while (atual != nullptr && atual->codigo != codigo) {
         anterior = atual;
-        atual = atual->proximo;
+        atual = atual->prox;
     }
-
     if (atual == nullptr) {
-        cout << "Produto nao encontrado.\n";
+        cout << "Produto não encontrado.\n";
         return;
     }
-
-    if (anterior == nullptr) {
-        inicioProdutos = atual->proximo;
-    } else {
-        anterior->proximo = atual->proximo;
-    }
+    if (anterior == nullptr) produtos = atual->prox;
+    else anterior->prox = atual->prox;
 
     delete atual;
     raiz = removerArvore(raiz, codigo);
     cout << "Produto removido.\n";
 }
 
-// Lista todos os produtos cadastrados.
-void listarProdutos() {
-    Produto* atual = inicioProdutos;
-
-    if (atual == nullptr) {
+// Lista os produtos. O parâmetro possui valor padrão.
+void listarProdutos(bool detalhes = true) {
+    if (produtos == nullptr) {
         cout << "Nenhum produto cadastrado.\n";
         return;
     }
-
-    cout << "\n===== PRODUTOS CADASTRADOS =====\n";
-    while (atual != nullptr) {
-        cout << "Codigo: " << atual->codigo << "\n";
-        cout << "Nome: " << atual->nome << "\n";
-        cout << "Preco: R$ " << atual->preco << "\n";
-        cout << "Estoque: " << atual->estoque << "\n";
-        cout << "--------------------------\n";
-        atual = atual->proximo;
+    for (Produto* p = produtos; p != nullptr; p = p->prox) {
+        cout << p->codigo << " - " << p->nome;
+        if (detalhes) cout << " | R$ " << p->preco << " | Estoque: " << p->estoque;
+        cout << "\n";
     }
 }
 
-// ======================== ARVORE BINARIA ========================
-
-// Insere um codigo na arvore binaria.
-NoArvore* inserirArvore(NoArvore* no, int codigo) {
-    if (no == nullptr) {
-        NoArvore* novo = new NoArvore;
-        novo->codigo = codigo;
-        novo->esquerda = nullptr;
-        novo->direita = nullptr;
-        return novo;
-    }
-
-    if (codigo < no->codigo) {
-        no->esquerda = inserirArvore(no->esquerda, codigo);
-    } else if (codigo > no->codigo) {
-        no->direita = inserirArvore(no->direita, codigo);
-    }
-    return no;
-}
-
-// Busca um codigo na arvore binaria.
-bool buscarArvore(NoArvore* no, int codigo) {
-    if (no == nullptr) return false;
-    if (no->codigo == codigo) return true;
-    if (codigo < no->codigo) return buscarArvore(no->esquerda, codigo);
-    return buscarArvore(no->direita, codigo);
-}
-
-// Percorre a arvore em ordem crescente.
-void listarArvore(NoArvore* no) {
-    if (no == nullptr) return;
-    listarArvore(no->esquerda);
-    cout << no->codigo << " ";
-    listarArvore(no->direita);
-}
-
-// Encontra o menor codigo da arvore.
-NoArvore* menorNo(NoArvore* no) {
-    while (no != nullptr && no->esquerda != nullptr) {
-        no = no->esquerda;
-    }
-    return no;
-}
-
-// Remove um codigo da arvore binaria.
-NoArvore* removerArvore(NoArvore* no, int codigo) {
-    if (no == nullptr) return nullptr;
-
-    if (codigo < no->codigo) {
-        no->esquerda = removerArvore(no->esquerda, codigo);
-    } else if (codigo > no->codigo) {
-        no->direita = removerArvore(no->direita, codigo);
-    } else {
-        if (no->esquerda == nullptr) {
-            NoArvore* direita = no->direita;
-            delete no;
-            return direita;
-        }
-        if (no->direita == nullptr) {
-            NoArvore* esquerda = no->esquerda;
-            delete no;
-            return esquerda;
-        }
-        NoArvore* sucessor = menorNo(no->direita);
-        no->codigo = sucessor->codigo;
-        no->direita = removerArvore(no->direita, sucessor->codigo);
-    }
-    return no;
-}
-
-// ======================== BUSCA E ORDENACAO ========================
-
-// Cria um vetor com os produtos da lista.
+// BUSCA E ORDENAÇÃO
+// Copia os ponteiros dos produtos para um vetor.
 vector<Produto*> criarVetor() {
-    vector<Produto*> produtos;
-    Produto* atual = inicioProdutos;
-    while (atual != nullptr) {
-        produtos.push_back(atual);
-        atual = atual->proximo;
-    }
-    return produtos;
+    vector<Produto*> v;
+    for (Produto* p = produtos; p != nullptr; p = p->prox) v.push_back(p);
+    return v;
 }
 
-// Ordena os produtos pelo codigo usando Bubble Sort.
-void ordenarBubble(vector<Produto*>& produtos) {
-    // Bubble Sort: complexidade O(n²) no pior caso.
-    for (int i = 0; i < (int)produtos.size() - 1; i++) {
-        for (int j = 0; j < (int)produtos.size() - i - 1; j++) {
-            if (produtos[j]->codigo > produtos[j + 1]->codigo) {
-                Produto* temp = produtos[j];
-                produtos[j] = produtos[j + 1];
-                produtos[j + 1] = temp;
-            }
-        }
-    }
+// Ordena os produtos pelo código usando Bubble Sort. Complexidade: O(n²).
+void bubbleSort(vector<Produto*>& v) {
+    for (int i = 0; i < (int)v.size() - 1; i++)
+        for (int j = 0; j < (int)v.size() - i - 1; j++)
+            if (v[j]->codigo > v[j + 1]->codigo)
+                swap(v[j], v[j + 1]);
 }
 
-// Realiza a busca sequencial.
-int buscaSequencial(vector<Produto*>& produtos, int codigo, int& comparacoes) {
+// Busca item por item e conta as comparações.
+int buscaSequencial(vector<Produto*>& v, int codigo, int& comparacoes) {
     comparacoes = 0;
-    for (int i = 0; i < (int)produtos.size(); i++) {
+    for (int i = 0; i < (int)v.size(); i++) {
         comparacoes++;
-        if (produtos[i]->codigo == codigo) return i;
+        if (v[i]->codigo == codigo) return i;
     }
     return -1;
 }
 
-// Realiza a busca binaria em um vetor ordenado.
-int buscaBinaria(vector<Produto*>& produtos, int codigo, int& comparacoes) {
-    int inicio = 0;
-    int fim = (int)produtos.size() - 1;
+// Busca pela metade do vetor. O vetor precisa estar ordenado.
+int buscaBinaria(vector<Produto*>& v, int codigo, int& comparacoes) {
+    int ini = 0, fim = (int)v.size() - 1;
     comparacoes = 0;
-
-    while (inicio <= fim) {
+    while (ini <= fim) {
         comparacoes++;
-        int meio = inicio + (fim - inicio) / 2;
-        if (produtos[meio]->codigo == codigo) return meio;
-        if (produtos[meio]->codigo < codigo) inicio = meio + 1;
+        int meio = (ini + fim) / 2;
+        if (v[meio]->codigo == codigo) return meio;
+        if (v[meio]->codigo < codigo) ini = meio + 1;
         else fim = meio - 1;
     }
     return -1;
 }
 
-// Pesquisa um produto e compara os dois metodos de busca.
+// Compara a busca sequencial com a binária.
 void pesquisarProduto() {
-    if (inicioProdutos == nullptr) {
-        cout << "Nenhum produto cadastrado.\n";
+    if (produtos == nullptr) {
+        cout << "Cadastre um produto primeiro.\n";
         return;
     }
-
     int codigo, compSeq, compBin;
-    cout << "Digite o codigo do produto: ";
+    cout << "Código para pesquisar: ";
     cin >> codigo;
 
-    vector<Produto*> produtos = criarVetor();
-    int resultadoSeq = buscaSequencial(produtos, codigo, compSeq);
-    ordenarBubble(produtos);
-    int resultadoBin = buscaBinaria(produtos, codigo, compBin);
+    vector<Produto*> v = criarVetor();
+    int posSeq = buscaSequencial(v, codigo, compSeq);
+    bubbleSort(v);
+    int posBin = buscaBinaria(v, codigo, compBin);
 
-    cout << "\n===== RESULTADO DAS BUSCAS =====\n";
-    cout << "Busca sequencial: " << compSeq << " comparacoes\n";
-    cout << "Busca binaria: " << compBin << " comparacoes\n";
-
-    if (resultadoSeq != -1) {
-        cout << "Produto encontrado: " << produtos[resultadoBin]->nome << "\n";
-        cout << "Preco: R$ " << produtos[resultadoBin]->preco << "\n";
-    } else {
-        cout << "Produto nao encontrado.\n";
-    }
+    cout << "Busca sequencial: " << compSeq << " comparações\n";
+    cout << "Busca binária: " << compBin << " comparações\n";
+    cout << "Código na árvore: " << (buscarArvore(raiz, codigo) ? "encontrado" : "não encontrado") << "\n";
+    if (posSeq != -1 && posBin != -1)
+        cout << "Encontrado: " << v[posBin]->nome << " | R$ " << v[posBin]->preco << "\n";
+    else cout << "Produto não encontrado.\n";
 }
 
-// ======================== FILA DE CLIENTES ========================
-
-// Adiciona um cliente ao final da fila (FIFO).
+// FILA DE CLIENTES (FIFO)
+// Adiciona um cliente no final da fila.
 void adicionarCliente() {
     NoFila* novo = new NoFila;
     cout << "Nome do cliente: ";
     getline(cin >> ws, novo->nome);
-    novo->proximo = nullptr;
+    novo->prox = nullptr;
 
-    if (fimFila == nullptr) {
-        inicioFila = novo;
-        fimFila = novo;
-    } else {
-        fimFila->proximo = novo;
+    if (fimFila == nullptr) inicioFila = fimFila = novo;
+    else {
+        fimFila->prox = novo;
         fimFila = novo;
     }
-    cout << "Cliente adicionado a fila.\n";
+    cout << "Cliente entrou na fila.\n";
 }
 
-// Atende o primeiro cliente que entrou na fila.
+// Atende e remove o primeiro cliente da fila.
 void atenderCliente() {
     if (inicioFila == nullptr) {
-        cout << "A fila esta vazia.\n";
+        cout << "Fila vazia.\n";
         return;
     }
-
     NoFila* removido = inicioFila;
-    cout << "Atendendo cliente: " << removido->nome << "\n";
-    inicioFila = inicioFila->proximo;
-
-    if (inicioFila == nullptr) {
-        fimFila = nullptr;
-    }
+    cout << "Atendendo: " << removido->nome << "\n";
+    inicioFila = inicioFila->prox;
+    if (inicioFila == nullptr) fimFila = nullptr;
     delete removido;
 }
 
-// ======================== PILHA DE HISTORICO DE VENDAS ========================
-
-// Registra uma venda e reduz o estoque do produto.
+// PILHA DE VENDAS (LIFO)
+// Registra uma venda e diminui uma unidade do estoque.
 void registrarVenda() {
     int codigo;
-    cout << "Codigo do produto vendido: ";
+    cout << "Código do produto vendido: ";
     cin >> codigo;
 
-    Produto* atual = inicioProdutos;
-    while (atual != nullptr && atual->codigo != codigo) {
-        atual = atual->proximo;
-    }
-
-    if (atual == nullptr) {
-        cout << "Produto nao encontrado.\n";
+    Produto* p = produtos;
+    while (p != nullptr && p->codigo != codigo) p = p->prox;
+    if (p == nullptr) {
+        cout << "Produto não encontrado.\n";
         return;
     }
-    if (atual->estoque <= 0) {
-        cout << "Produto sem estoque.\n";
+    if (p->estoque <= 0) {
+        cout << "Sem estoque.\n";
         return;
     }
 
-    atual->estoque--;
-    NoPilha* novaVenda = new NoPilha;
-    novaVenda->descricao = "Venda: " + atual->nome +
-        " (codigo " + to_string(atual->codigo) + ")";
-    novaVenda->proximo = topoHistorico;
-    topoHistorico = novaVenda;
-
-    cout << "Venda registrada! Estoque atualizado.\n";
+    p->estoque--;
+    NoPilha* nova = new NoPilha;
+    nova->venda = "Venda: " + p->nome + " (código " + to_string(p->codigo) + ")";
+    nova->prox = topo;
+    topo = nova;
+    cout << "Venda registrada.\n";
 }
 
-// Mostra primeiro a venda mais recente (LIFO).
+// Mostra a venda mais recente primeiro.
 void mostrarHistorico() {
-    if (topoHistorico == nullptr) {
-        cout << "Nenhuma venda registrada.\n";
+    if (topo == nullptr) {
+        cout << "Histórico vazio.\n";
         return;
     }
-
-    cout << "\n===== HISTORICO DE VENDAS =====\n";
-    NoPilha* atual = topoHistorico;
-    while (atual != nullptr) {
-        cout << atual->descricao << "\n";
-        atual = atual->proximo;
-    }
+    for (NoPilha* p = topo; p != nullptr; p = p->prox)
+        cout << p->venda << "\n";
 }
 
-// ======================== LIBERACAO DE MEMORIA ========================
-
-// Libera todos os produtos da lista encadeada.
-void liberarProdutos() {
-    while (inicioProdutos != nullptr) {
-        Produto* removido = inicioProdutos;
-        inicioProdutos = inicioProdutos->proximo;
-        delete removido;
-    }
-    inicioProdutos = nullptr;
-}
-
-// Libera recursivamente todos os nos da arvore binaria.
+// LIBERAÇÃO DE MEMÓRIA
+// Libera todos os nós da árvore recursivamente.
 void liberarArvore(NoArvore* no) {
     if (no == nullptr) return;
-    liberarArvore(no->esquerda);
-    liberarArvore(no->direita);
+    liberarArvore(no->esq);
+    liberarArvore(no->dir);
     delete no;
 }
 
-// Libera os clientes que ainda estiverem aguardando na fila.
+// Libera a lista de produtos.
+void liberarProdutos() {
+    while (produtos != nullptr) {
+        Produto* temp = produtos;
+        produtos = produtos->prox;
+        delete temp;
+    }
+}
+
+// Libera a fila de clientes.
 void liberarFila() {
     while (inicioFila != nullptr) {
-        NoFila* removido = inicioFila;
-        inicioFila = inicioFila->proximo;
-        delete removido;
+        NoFila* temp = inicioFila;
+        inicioFila = inicioFila->prox;
+        delete temp;
     }
-    inicioFila = nullptr;
     fimFila = nullptr;
 }
 
-// Libera todos os registros armazenados na pilha de vendas.
-void liberarHistorico() {
-    while (topoHistorico != nullptr) {
-        NoPilha* removido = topoHistorico;
-        topoHistorico = topoHistorico->proximo;
-        delete removido;
+// Libera o histórico de vendas.
+void liberarPilha() {
+    while (topo != nullptr) {
+        NoPilha* temp = topo;
+        topo = topo->prox;
+        delete temp;
     }
-    topoHistorico = nullptr;
 }
 
-// Centraliza a liberacao de todas as estruturas dinamicas do sistema.
+// Libera todas as estruturas antes de encerrar.
 void liberarMemoria() {
     liberarProdutos();
     liberarArvore(raiz);
     raiz = nullptr;
     liberarFila();
-    liberarHistorico();
+    liberarPilha();
 }
 
-// ======================== MENU PRINCIPAL ========================
-
+// MENU PRINCIPAL
 int main() {
     int opcao;
     do {
-        cout << "\n===== GERENCIADOR DE ESTABELECIMENTO =====\n";
-        cout << "1 - Cadastrar produto\n";
-        cout << "2 - Remover produto\n";
-        cout << "3 - Listar produtos\n";
-        cout << "4 - Pesquisar produto\n";
-        cout << "5 - Mostrar arvore binaria\n";
-        cout << "6 - Adicionar cliente na fila\n";
-        cout << "7 - Atender proximo cliente\n";
-        cout << "8 - Registrar venda\n";
-        cout << "9 - Mostrar historico de vendas\n";
-        cout << "0 - Sair\n";
-        cout << "Escolha: ";
+        cout << "\n=== GERENCIADOR DE ESTABELECIMENTO ===\n";
+        cout << "1-Cadastrar  2-Remover  3-Listar  4-Pesquisar\n";
+        cout << "5-Mostrar árvore  6-Adicionar cliente  7-Atender\n";
+        cout << "8-Registrar venda  9-Histórico  0-Sair\n";
+        cout << "Opção: ";
         cin >> opcao;
 
         switch (opcao) {
@@ -430,23 +342,19 @@ int main() {
             case 3: listarProdutos(); break;
             case 4: pesquisarProduto(); break;
             case 5:
-                if (raiz == nullptr) cout << "Arvore vazia.\n";
-                else {
-                    cout << "Codigos em ordem crescente: ";
-                    listarArvore(raiz);
-                    cout << "\n";
-                }
+                if (raiz == nullptr) cout << "Árvore vazia.\n";
+                else { listarArvore(raiz); cout << "\n"; }
                 break;
             case 6: adicionarCliente(); break;
             case 7: atenderCliente(); break;
             case 8: registrarVenda(); break;
             case 9: mostrarHistorico(); break;
-            case 0: cout << "Encerrando sistema...\n"; break;
-            default: cout << "Opcao invalida.\n";
+            case 0: cout << "Encerrando...\n"; break;
+            default: cout << "Opção inválida.\n";
         }
     } while (opcao != 0);
 
     liberarMemoria();
-    cout << "Memoria liberada. Sistema finalizado com seguranca.\n";
+    cout << "Memória liberada.\n";
     return 0;
 }
